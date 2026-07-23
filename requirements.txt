@@ -1,9 +1,8 @@
-fastapi
-uvicorn[standard]
-pymysql
-pyjwt
-numpy
-opencv-python-headless
-chromadb
-openai
-ultralytics
+fastapi==0.139.0
+uvicorn[standard]==0.50.2
+PyJWT==2.10.1
+numpy>=2.0,<3
+opencv-python-headless>=4.8,<5
+chromadb==1.5.9
+openai>=2.0,<3
+ultralytics==8.4.104
