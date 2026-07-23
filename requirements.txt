@@ -1,10 +1,9 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pymysql
 pyjwt
 numpy
-opencv-python
+opencv-python-headless
 chromadb
 openai
 ultralytics
-deepface
