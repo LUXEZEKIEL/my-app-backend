@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # 1. 关系型数据库：MySQL 8.0 一键生成
+  mysql_db:
+    image: mysql:8.0
+    container_name: psychology_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: '123456'   # 👈 你的数据库root密码
+      MYSQL_DATABASE: psychology_assistant       # 👈 启动时自动建立的数据库名称
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # 2. 向量数据库：ChromaDB 独立服务一键生成
+  chroma_db:
+    image: chromadb/chroma:latest
+    container_name: psychology_chroma
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/index_data
+
+volumes:
+  mysql_data:
+  chroma_data:

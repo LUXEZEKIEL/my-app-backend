@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Lovelux — When I am tired</title>
+<style>
+  :root {
+    --bg: #f9f7f5;
+    --surface: #ffffff;
+    --text: #3d3a35;
+    --text-muted: #a0988c;
+    --border: #ede8e2;
+    --rose: #f2d0d0;
+    --mint: #c8e6d8;
+    --lavender: #ded8f0;
+    --peach: #fde4cf;
+    --rose-dark: #c97d7d;
+    --mint-dark: #6ba68a;
+    --lavender-dark: #8b7dbf;
+    --peach-dark: #d4a373;
+    --radius: 20px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
+    background: var(--bg); color: var(--text); height: 100dvh;
+    display: flex; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    width: 100%; max-width: 480px; height: 100dvh;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 14px 20px; background: var(--surface);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+  .header h1 { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
+  .header .motto { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Tab content ── */
+  .tab-content { flex: 1; overflow-y: auto; display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Home grid ── */
+  .grid-container {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    padding: 24px 20px;
+  }
+  .card {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 28px 20px 20px; text-align: center; cursor: pointer;
+    border: 1px solid var(--border); transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    text-decoration: none; color: inherit; display: block;
+  }
+  .card:active { transform: scale(.97); box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+  .card .icon-wrap {
+    width: 56px; height: 56px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 14px; font-size: 28px;
+  }
+  .card:nth-child(1) .icon-wrap { background: var(--rose); }
+  .card:nth-child(2) .icon-wrap { background: var(--mint); }
+  .card:nth-child(3) .icon-wrap { background: var(--lavender); }
+  .card:nth-child(4) .icon-wrap { background: var(--peach); }
+  .card .card-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .card .card-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+  /* ── Records tab ── */
+  .records-list { padding: 20px; }
+  .record-item {
+    background: var(--surface); border-radius: 14px; padding: 16px;
+    margin-bottom: 12px; border: 1px solid var(--border);
+  }
+  .record-item .r-date { font-size: 12px; color: var(--text-muted); }
+  .record-item .r-title { font-size: 15px; font-weight: 600; margin: 4px 0; }
+  .record-item .r-tags { display:flex; gap:6px; flex-wrap:wrap; }
+  .r-tag {
+    font-size:10px; padding:2px 10px; border-radius:10px; font-weight:500;
+  }
+  .r-tag.chat { background: var(--rose); color: var(--rose-dark); }
+  .r-tag.emotion { background: var(--mint); color: var(--mint-dark); }
+  .r-tag.draw { background: var(--lavender); color: var(--lavender-dark); }
+  .r-tag.cbti { background: var(--peach); color: var(--peach-dark); }
+
+  .empty-state {
+    text-align: center; padding: 60px 40px; color: var(--text-muted);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* ── Knowledge tab ── */
+  .kb-list { padding: 20px; }
+  .kb-category { margin-bottom: 24px; }
+  .kb-category h3 {
+    font-size: 13px; color: var(--lavender-dark); margin-bottom: 10px;
+    padding-left: 4px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .kb-item {
+    background: var(--surface); border-radius: 12px; padding: 14px 16px;
+    margin-bottom: 8px; border: 1px solid var(--border); cursor: pointer;
+    transition: background .15s;
+  }
+  .kb-item:active { background: #faf8f6; }
+  .kb-item .kb-title { font-size: 14px; font-weight: 500; }
+  .kb-item .kb-preview { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: -webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+
+  /* ── Bottom tabs ── */
+  .bottom-tabs {
+    display: flex; background: var(--surface); border-top: 1px solid var(--border);
+    flex-shrink: 0; padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+  .tab-btn {
+    flex: 1; padding: 10px 0 6px; text-align: center; cursor: pointer;
+    border: none; background: none; font-size: 11px; color: var(--text-muted);
+    transition: color .2s; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .tab-btn .tab-icon { font-size: 20px; }
+  .tab-btn.active { color: var(--lavender-dark); font-weight: 600; }
+
+  /* ── Sub-page common: top bar with back ── */
+  .sub-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+  .back-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
+    background: none; font-size: 18px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; color: var(--text);
+    text-decoration: none; flex-shrink: 0;
+  }
+  .sub-header .sub-title { font-size: 16px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <h1>🌸 When I am tired</h1>
+    <span class="motto">温柔地照顾自己</span>
+  </div>
+
+  <!-- Tab 1: 首页 四宫格 -->
+  <div class="tab-content active" id="tabHome">
+    <div class="grid-container">
+      <a class="card" href="/">
+        <div class="icon-wrap">💬</div>
+        <div class="card-title">AI 聊天陪伴</div>
+        <div class="card-desc">情绪感知 · 拍照分析</div>
+      </a>
+      <a class="card" href="/realtime">
+        <div class="icon-wrap">😊</div>
+        <div class="card-title">实时情绪识别</div>
+        <div class="card-desc">摄像头 · 表情追踪</div>
+      </a>
+      <a class="card" href="/draw">
+        <div class="icon-wrap">🎨</div>
+        <div class="card-title">绘画心理分析</div>
+        <div class="card-desc">自由绘画 · AI 解读</div>
+      </a>
+      <a class="card" href="/cbti">
+        <div class="icon-wrap">🛏️</div>
+        <div class="card-title">CBT-I 失眠调节</div>
+        <div class="card-desc">临床协议 · 睡眠改善</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Tab 2: 我的记录 -->
+  <div class="tab-content" id="tabRecords">
+    <div class="records-list" id="recordsList">
+      <div class="empty-state">
+        <div class="icon">📋</div>
+        <p>还没有记录</p>
+        <p style="font-size:12px;color:var(--text-muted);">你的聊天和情绪分析会出现在这里</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: 知识库 -->
+  <div class="tab-content" id="tabKb">
+    <div class="kb-list">
+      <div class="kb-category">
+        <h3>🧠 心理学知识</h3>
+        <div class="kb-item" onclick="location.href='/'"><div class="kb-title">焦虑压力应对</div><div class="kb-preview">认知重构、番茄工作法、渐进式放松...</div></div>
+        <div class="kb-item" onclick="location.href='/'"><div class="kb-title">情绪低落调节</div><div class="kb-preview">三栏对话法、行为激活、感恩练习...</div></div>
+        <div class="kb-item" onclick="location.href='/'"><div class="kb-title">社交焦虑突破</div><div class="kb-preview">渐进暴露、注意力转移、安全行为挑战...</div></div>
+      </div>
+      <div class="kb-category">
+        <h3>🛏️ 睡眠科学</h3>
+        <div class="kb-item" onclick="location.href='/cbti'"><div class="kb-title">CBT-I 完整协议</div><div class="kb-preview">睡眠限制、刺激控制、认知重构、放松训练...</div></div>
+        <div class="kb-item" onclick="location.href='/cbti'"><div class="kb-title">睡眠卫生指南</div><div class="kb-preview">光线、温度、咖啡因、睡前仪式...</div></div>
+      </div>
+      <div class="kb-category">
+        <h3>🎨 艺术治疗</h3>
+        <div class="kb-item" onclick="location.href='/draw'"><div class="kb-title">绘画心理分析原理</div><div class="kb-preview">空间象征学、色彩心理学、投射测验...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom tabs -->
+  <div class="bottom-tabs">
+    <button class="tab-btn active" data-tab="tabHome" onclick="switchTab('tabHome', this)">
+      <span class="tab-icon">🏠</span>首页
+    </button>
+    <button class="tab-btn" data-tab="tabRecords" onclick="switchTab('tabRecords', this)">
+      <span class="tab-icon">📋</span>我的记录
+    </button>
+    <button class="tab-btn" data-tab="tabKb" onclick="switchTab('tabKb', this)">
+      <span class="tab-icon">📚</span>知识库
+    </button>
+  </div>
+</div>
+
+<script>
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Load records from localStorage
+(function() {
+  try {
+    const records = JSON.parse(localStorage.getItem('lovelux_records') || '[]');
+    if (records.length > 0) {
+      const list = document.getElementById('recordsList');
+      list.innerHTML = records.slice(0, 20).map(r => `
+        <div class="record-item">
+          <div class="r-date">${r.date || ''}</div>
+          <div class="r-title">${escapeHTML(r.title || '')}</div>
+          <div class="r-tags">${(r.tags||[]).map(t => `<span class="r-tag ${t.type}">${t.label}</span>`).join('')}</div>
+        </div>`).join('');
+    }
+  } catch(e) {}
+})();
+
+function escapeHTML(s) {
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+</script>
+</body>
+</html>

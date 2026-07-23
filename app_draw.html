@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Lovelux — 绘画心理分析</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --text: #2d2a26;
+    --text-muted: #78716c;
+    --border: #e7e5e4;
+    --accent: #d97706;
+    --accent2: #059669;
+    --accent3: #7c3aed;
+    --radius: 14px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); height: 100dvh;
+    display: flex; justify-content: center;
+  }
+
+  .app {
+    width: 100%; max-width: 520px; height: 100dvh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    padding: 14px 20px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .header h1 { font-size: 17px; font-weight: 700; }
+  .header .sub { font-size: 12px; color: var(--text-muted); }
+
+  /* --- Canvas Area --- */
+  .canvas-wrapper {
+    position: relative; background: #fff; flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    touch-action: none;
+  }
+  canvas {
+    display: block; width: 100%; aspect-ratio: 1/1;
+    cursor: crosshair; background: #fffef9;
+    background-image:
+      radial-gradient(circle, #f0ede8 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .color-dot {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: transform .15s;
+    flex-shrink: 0;
+  }
+  .color-dot:active { transform: scale(1.2); }
+  .color-dot.active { border-color: var(--text); transform: scale(1.15); }
+  .tool-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  .tool-btn {
+    padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 13px; cursor: pointer;
+    white-space: nowrap; font-weight: 500;
+  }
+  .tool-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+  .tool-btn.accent { background: var(--accent3); color: #fff; border-color: var(--accent3); }
+  .size-slider {
+    width: 60px; accent-color: var(--text);
+  }
+
+  /* --- Analysis Panel --- */
+  .analysis-panel {
+    flex: 1; overflow-y: auto; padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 0;
+  }
+  .analysis-card {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 16px; border: 1px solid var(--border);
+    animation: fadeIn .4s ease;
+  }
+  .analysis-card .section-title {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--accent); font-weight: 700; margin-bottom: 8px;
+  }
+  .analysis-card .insight {
+    font-size: 14px; line-height: 1.7; color: var(--text);
+  }
+  .analysis-card .tags {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+  }
+  .tag {
+    padding: 4px 12px; border-radius: 20px; font-size: 11px;
+    background: #f5f3f0; color: #57534e; font-weight: 500;
+  }
+
+  /* Chat mini inside analysis */
+  .chat-mini {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .chat-mini .msg {
+    padding: 10px 14px; border-radius: 12px; font-size: 13px;
+    line-height: 1.55; max-width: 90%;
+  }
+  .chat-mini .msg.ai { background: #f0fdf4; align-self: flex-start; }
+  .chat-mini .msg.user { background: var(--accent3); color: #fff; align-self: flex-end; }
+  .chat-row {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  .chat-row input {
+    flex:1; height:38px; padding:0 14px; border-radius:19px;
+    border:1px solid var(--border); font-size:13px; outline:none;
+  }
+  .chat-row button {
+    height:38px; padding:0 18px; border-radius:19px; border:none;
+    background:var(--accent3); color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .chat-row button:disabled { opacity: .4; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 30px 20px; color: var(--text-muted);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 10px; }
+
+  @keyframes fadeIn { from {opacity:0; transform:translateY(8px);} to {opacity:1; transform:translateY(0);} }
+
+  .spinner {
+    display: inline-block; width:16px; height:16px; border:2px solid #e5e7eb;
+    border-top-color: var(--accent3); border-radius:50%; animation:spin .6s linear infinite;
+    margin-right: 6px; vertical-align: middle;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  @media (max-width:520px) {
+    .color-dot { width: 24px; height: 24px; }
+    .tool-btn { font-size: 11px; padding: 5px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <a href="/home" style="width:34px;height:34px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--text);font-size:18px;flex-shrink:0;">←</a>
+    <div>
+      <h1>🎨 绘画心理分析</h1>
+      <div class="sub">画你所想，AI 解读你的内心世界</div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrapper" id="canvasWrapper">
+    <canvas id="drawCanvas"></canvas>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="color-dot active" style="background:#1e293b" data-color="#1e293b"></div>
+    <div class="color-dot" style="background:#ef4444" data-color="#ef4444"></div>
+    <div class="color-dot" style="background:#f97316" data-color="#f97316"></div>
+    <div class="color-dot" style="background:#eab308" data-color="#eab308"></div>
+    <div class="color-dot" style="background:#22c55e" data-color="#22c55e"></div>
+    <div class="color-dot" style="background:#3b82f6" data-color="#3b82f6"></div>
+    <div class="color-dot" style="background:#8b5cf6" data-color="#8b5cf6"></div>
+    <div class="color-dot" style="background:#ec4899" data-color="#ec4899"></div>
+    <div class="tool-divider"></div>
+    <input type="range" class="size-slider" id="brushSize" min="1" max="20" value="3" title="笔刷大小">
+    <button class="tool-btn active" id="btnPen" onclick="setTool('pen')">✏️ 画笔</button>
+    <button class="tool-btn" id="btnEraser" onclick="setTool('eraser')">🧹 橡皮</button>
+    <button class="tool-btn" onclick="clearCanvas()">🗑 清空</button>
+    <button class="tool-btn accent" onclick="analyzeDrawing()" id="btnAnalyze">🔍 分析</button>
+  </div>
+
+  <!-- Analysis + Chat -->
+  <div class="analysis-panel" id="analysisPanel">
+    <div class="empty-state">
+      <div class="icon">🖼️</div>
+      <p>在上方画布上自由绘画<br>画完点「🔍 分析」查看心理洞察</p>
+      <p style="font-size:12px;margin-top:6px;color:#a8a29e;">试试画一棵树、一座房子、或随意的涂鸦</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== Canvas Drawing =====================
+const canvas = document.getElementById('drawCanvas');
+const ctx = canvas.getContext('2d');
+let isDrawing = false;
+let currentColor = '#1e293b';
+let brushSize = 3;
+let tool = 'pen'; // pen | eraser
+
+function resizeCanvas() {
+  const wrapper = document.getElementById('canvasWrapper');
+  const w = wrapper.clientWidth;
+  canvas.width = w * 2;
+  canvas.height = w * 2;
+  ctx.scale(2, 2);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // Fill white background after resize
+  ctx.fillStyle = '#fffef9';
+  ctx.fillRect(0, 0, w, w);
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Color picker
+document.querySelectorAll('.color-dot').forEach(dot => {
+  dot.addEventListener('click', () => {
+    document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+    dot.classList.add('active');
+    currentColor = dot.dataset.color;
+    if (tool === 'eraser') setTool('pen');
+  });
+});
+
+// Brush size
+document.getElementById('brushSize').addEventListener('input', (e) => {
+  brushSize = parseInt(e.target.value);
+  document.getElementById('btnEraser').classList.remove('active');
+  tool = 'pen';
+  document.getElementById('btnPen').classList.add('active');
+});
+
+function setTool(t) {
+  tool = t;
+  document.getElementById('btnPen').classList.toggle('active', t === 'pen');
+  document.getElementById('btnEraser').classList.toggle('active', t === 'eraser');
+}
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = rect.width / (rect.width); // we use css width, canvas is 2x
+  let clientX, clientY;
+  if (e.touches) {
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top
+  };
+}
+
+function startDraw(e) {
+  isDrawing = true;
+  const pos = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  e.preventDefault();
+}
+
+function draw(e) {
+  if (!isDrawing) return;
+  const pos = getPos(e);
+  ctx.lineWidth = brushSize;
+  if (tool === 'eraser') {
+    ctx.strokeStyle = '#fffef9';
+    ctx.lineWidth = brushSize * 3;
+  } else {
+    ctx.strokeStyle = currentColor;
+  }
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  e.preventDefault();
+}
+
+function stopDraw() {
+  isDrawing = false;
+  ctx.beginPath();
+}
+
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', stopDraw);
+canvas.addEventListener('mouseleave', stopDraw);
+canvas.addEventListener('touchstart', startDraw, {passive: false});
+canvas.addEventListener('touchmove', draw, {passive: false});
+canvas.addEventListener('touchend', stopDraw);
+
+function clearCanvas() {
+  const w = canvas.width / 2;
+  ctx.fillStyle = '#fffef9';
+  ctx.fillRect(0, 0, w, w);
+  // Reset analysis
+  document.getElementById('analysisPanel').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">🖼️</div><p>画布已清空，重新画吧</p>
+    </div>`;
+}
+
+// ===================== Analysis (deep feature extraction) =====================
+function extractDrawingFeatures() {
+  const w = canvas.width;
+  const h = canvas.height;
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const pixels = imageData.data;
+
+  let totalStrokes = 0;
+  const colorMap = {}; // color name -> count
+  const quadrantCounts = Array(9).fill(0); // 3x3 grid
+  const thirdH = [0, 0, 0]; // left, center, right
+  const thirdV = [0, 0, 0]; // top, middle, bottom
+  let warmPixels = 0, coolPixels = 0, darkPixels = 0;
+  let totalR = 0, totalG = 0, totalB = 0;
+  let minX = w, maxX = 0, minY = h, maxY = 0;
+  let edgePixels = 0; // pixels near edges of drawn areas
+  let filledPixels = 0; // non-background pixels
+
+  const bgR = 255, bgG = 254, bgB = 249;
+
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = pixels[i], g = pixels[i+1], b = pixels[i+2];
+    if (Math.abs(r - bgR) > 12 || Math.abs(g - bgG) > 12 || Math.abs(b - bgB) > 12) {
+      filledPixels++;
+      totalR += r; totalG += g; totalB += b;
+
+      const x = (i / 4) % w;
+      const y = Math.floor((i / 4) / w);
+
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+
+      // 9-grid quadrant (3x3)
+      const qx = Math.min(2, Math.floor(x / w * 3));
+      const qy = Math.min(2, Math.floor(y / h * 3));
+      quadrantCounts[qy * 3 + qx]++;
+
+      // Thirds
+      thirdH[Math.min(2, Math.floor(x / w * 3))]++;
+      thirdV[Math.min(2, Math.floor(y / h * 3))]++;
+
+      // Color temperature analysis
+      const brightness = (r + g + b) / 3;
+      const warmth = (r - b); // positive = warm, negative = cool
+      if (warmth > 30) warmPixels++;
+      else if (warmth < -30) coolPixels++;
+      if (brightness < 60) darkPixels++;
+
+      // Color classification
+      let colorName;
+      const maxC = Math.max(r, g, b);
+      const minC = Math.min(r, g, b);
+      const sat = maxC - minC;
+
+      if (brightness < 50) colorName = '黑色/深灰';
+      else if (sat < 20) colorName = brightness > 200 ? '白色/浅灰' : '灰色';
+      else if (r > g && r > b && r - g > 30 && r - b > 30) colorName = '红色';
+      else if (g > r && g > b && g - r > 20 && g - b > 20) colorName = '绿色';
+      else if (b > r && b > g && b - r > 20 && b - g > 20) colorName = '蓝色';
+      else if (r > 180 && g > 150 && b < 100) colorName = '橙/黄色';
+      else if (r > 150 && b > 150 && g < 120) colorName = '紫色';
+      else if (r > 180 && g > 100 && b > 100 && r - g < 60) colorName = '棕色';
+      else colorName = '混合色';
+
+      colorMap[colorName] = (colorMap[colorName] || 0) + 1;
+
+      // Edge detection (simple: check if neighbor pixels are background)
+      if (x > 0 && x < w-1 && y > 0 && y < h-1) {
+        const idx = ((y-1) * w + x) * 4;
+        const nb = Math.abs(pixels[idx] - bgR) + Math.abs(pixels[idx+1] - bgG) + Math.abs(pixels[idx+2] - bgB);
+        if (nb < 20) edgePixels++; // this pixel borders background = edge
+      }
+    }
+  }
+
+  const totalDrawPixels = w * h;
+  const coverage = filledPixels / totalDrawPixels;
+  const edgeRatio = filledPixels > 0 ? edgePixels / filledPixels : 0;
+
+  // Average color
+  const avgR = filledPixels > 0 ? Math.round(totalR / filledPixels) : 255;
+  const avgG = filledPixels > 0 ? Math.round(totalG / filledPixels) : 254;
+  const avgB = filledPixels > 0 ? Math.round(totalB / filledPixels) : 249;
+
+  // Color analysis
+  const sortedColors = Object.entries(colorMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const dominantColor = sortedColors[0]?.[0] || '无';
+  const colorCount = sortedColors.length;
+  const warmRatio = filledPixels > 0 ? warmPixels / filledPixels : 0;
+  const coolRatio = filledPixels > 0 ? coolPixels / filledPixels : 0;
+  const darkRatio = filledPixels > 0 ? darkPixels / filledPixels : 0;
+
+  // Quadrant analysis
+  const quadLabels = [
+    '左上', '中上', '右上',
+    '左中', '正中', '右中',
+    '左下', '中下', '右下'
+  ];
+  const totalQuadFilled = quadrantCounts.reduce((a, b) => a + b, 0);
+  const quadRatios = quadrantCounts.map(c => totalQuadFilled > 0 ? c / totalQuadFilled : 0);
+  const topHalf = quadRatios[0] + quadRatios[1] + quadRatios[2];
+  const bottomHalf = quadRatios[6] + quadRatios[7] + quadRatios[8];
+  const leftHalf = quadRatios[0] + quadRatios[3] + quadRatios[6];
+  const rightHalf = quadRatios[2] + quadRatios[5] + quadRatios[8];
+  const centerZone = quadRatios[4];
+
+  // Find the most filled quadrant
+  const maxQuadIdx = quadRatios.indexOf(Math.max(...quadRatios));
+  const minQuadIdx = quadRatios.indexOf(Math.min(...quadRatios.filter(v => v > 0.001)));
+
+  // Horizontal thirds
+  const thirdHRatios = thirdH.map(c => filledPixels > 0 ? c / filledPixels : 0);
+  const thirdVRatios = thirdV.map(c => filledPixels > 0 ? c / filledPixels : 0);
+
+  // Stroke character: high edge ratio = line drawing, low = filled shapes
+  const strokeStyle = edgeRatio > 0.4 ? '线条为主（轮廓描绘型）' : edgeRatio > 0.2 ? '线条与色块结合' : '色块填充为主';
+
+  // Spatial analysis
+  const drawWidth = maxX - minX;
+  const drawHeight = maxY - minY;
+  const centerX = (minX + maxX) / 2 / w;
+  const centerY = (minY + maxY) / 2 / h;
+  const aspectRatio = drawHeight > 0 ? drawWidth / drawHeight : 1;
+  const isPortrait = aspectRatio < 0.85;
+  const isLandscape = aspectRatio > 1.15;
+
+  return {
+    // Size
+    coverage_pct: Math.round(coverage * 100),
+    coverage_raw: coverage.toFixed(4),
+    size_hint: coverage < 0.03 ? 'tiny' : coverage < 0.1 ? 'small' : coverage < 0.3 ? 'medium' : coverage < 0.6 ? 'large' : 'very_large',
+
+    // Position
+    center_x: centerX.toFixed(2),
+    center_y: centerY.toFixed(2),
+    horizontal_position: centerX < 0.4 ? 'left' : centerX > 0.6 ? 'right' : 'center',
+    vertical_position: centerY < 0.4 ? 'top' : centerY > 0.6 ? 'bottom' : 'center',
+    balance_h: leftHalf > 0.6 ? 'left_heavy' : rightHalf > 0.6 ? 'right_heavy' : 'balanced',
+    balance_v: topHalf > 0.6 ? 'top_heavy' : bottomHalf > 0.6 ? 'bottom_heavy' : 'balanced',
+
+    // Shape
+    aspect_ratio: aspectRatio.toFixed(2),
+    is_portrait: isPortrait,
+    is_landscape: isLandscape,
+    is_square: !isPortrait && !isLandscape,
+    stroke_style: strokeStyle,
+
+    // Color
+    dominant_color: dominantColor,
+    color_count: colorCount,
+    color_palette: sortedColors.map(([name, count]) => ({ name, pct: Math.round(count / filledPixels * 100) })),
+    warm_ratio: Math.round(warmRatio * 100),
+    cool_ratio: Math.round(coolRatio * 100),
+    dark_ratio: Math.round(darkRatio * 100),
+    color_tone: warmRatio > 0.5 ? 'warm' : coolRatio > 0.5 ? 'cool' : 'neutral',
+
+    // Spatial distribution
+    quadrant_ratios: quadRatios.map((r, i) => ({ zone: quadLabels[i], pct: Math.round(r * 100) })),
+    focus_zone: quadLabels[maxQuadIdx],
+    empty_zone: minQuadIdx >= 0 ? quadLabels[minQuadIdx] : 'none',
+    top_half_pct: Math.round(topHalf * 100),
+    bottom_half_pct: Math.round(bottomHalf * 100),
+    left_half_pct: Math.round(leftHalf * 100),
+    right_half_pct: Math.round(rightHalf * 100),
+    center_zone_pct: Math.round(centerZone * 100),
+    third_h: thirdHRatios.map(r => Math.round(r * 100)),
+    third_v: thirdVRatios.map(r => Math.round(r * 100)),
+  };
+}
+
+// ===================== API =====================
+const API = 'http://127.0.0.1:8080';
+
+async function analyzeDrawing() {
+  const btn = document.getElementById('btnAnalyze');
+  btn.textContent = '分析中...';
+  btn.disabled = true;
+
+  // Extract features
+  const features = extractDrawingFeatures();
+
+  // Check if anything was drawn
+  if (features.coverage_pct < 1) {
+    document.getElementById('analysisPanel').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🤔</div>
+        <p>似乎还没画什么，先在上方画布上画点东西吧</p>
+      </div>`;
+    btn.textContent = '🔍 分析';
+    btn.disabled = false;
+    return;
+  }
+
+  // Get base64 of drawing
+  const base64 = canvas.toDataURL('image/jpeg', 0.85);
+
+  try {
+    const res = await fetch(`${API}/analyze_drawing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64, features })
+    });
+    const data = await res.json();
+
+    if (data.status === 200) {
+      renderAnalysis(data.data.analysis, features);
+    } else {
+      throw new Error(data.detail || '分析失败');
+    }
+  } catch (err) {
+    document.getElementById('analysisPanel').innerHTML = `
+      <div class="analysis-card">
+        <div class="section-title">⚠️ 分析失败</div>
+        <div class="insight">${err.message}。请确认后端服务(8080端口)已启动。</div>
+      </div>`;
+  } finally {
+    btn.textContent = '🔍 分析';
+    btn.disabled = false;
+  }
+}
+
+function renderAnalysis(analysisText, features) {
+  const panel = document.getElementById('analysisPanel');
+
+  // Parse analysis sections
+  const sections = parseAnalysisSections(analysisText);
+
+  let html = '';
+
+  // Feature summary
+  const paletteTags = (features.color_palette || []).slice(0, 5).map(c =>
+    `<span class="tag">${c.name} ${c.pct}%</span>`
+  ).join('');
+
+  html += `<div class="analysis-card">
+    <div class="section-title">📊 画面特征</div>
+    <div class="tags">
+      <span class="tag">覆盖率 ${features.coverage_pct}%</span>
+      <span class="tag">重心: ${features.focus_zone}</span>
+      <span class="tag">色调: ${features.color_tone === 'warm' ? '暖' : features.color_tone === 'cool' ? '冷' : '中性'}</span>
+      <span class="tag">${features.stroke_style}</span>
+      <span class="tag">${features.is_portrait ? '纵向' : features.is_landscape ? '横向' : '方形'}构图</span>
+    </div>
+    <div class="tags" style="margin-top:4px;">
+      ${paletteTags}
+    </div>
+  </div>`;
+
+  // AI Analysis
+  html += `<div class="analysis-card">
+    <div class="section-title">🧠 AI 心理洞察</div>
+    <div class="insight">${analysisText.replace(/\n/g, '<br>')}</div>
+  </div>`;
+
+  // Deep chat
+  html += `<div class="analysis-card">
+    <div class="section-title">💬 深入交谈</div>
+    <div class="chat-mini" id="chatMini"></div>
+    <div class="chat-row">
+      <input id="drawChatInput" type="text" placeholder="关于这幅画，我想聊聊..."
+             onkeydown="if(event.key==='Enter')sendDrawChat()">
+      <button id="drawChatBtn" onclick="sendDrawChat()">发送</button>
+    </div>
+  </div>`;
+
+  panel.innerHTML = html;
+
+  // Store context for chat
+  panel._drawContext = {
+    analysis: analysisText,
+    features: features
+  };
+  panel._chatHistory = [];
+}
+
+function parseAnalysisSections(text) {
+  // Simple section parser
+  const sections = {};
+  const lines = text.split('\n');
+  let currentSection = 'general';
+  sections[currentSection] = [];
+
+  for (const line of lines) {
+    const match = line.match(/^【(.+?)】[：:]*\s*(.*)/);
+    if (match) {
+      currentSection = match[1];
+      sections[currentSection] = [match[2]];
+    } else if (line.trim()) {
+      sections[currentSection] = sections[currentSection] || [];
+      sections[currentSection].push(line);
+    }
+  }
+  return sections;
+}
+
+// ===================== Drawing Chat =====================
+async function sendDrawChat() {
+  const input = document.getElementById('drawChatInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const panel = document.getElementById('analysisPanel');
+  const ctx = panel._drawContext || {};
+  const mini = document.getElementById('chatMini');
+
+  // Show user msg
+  mini.innerHTML += `<div class="msg user">${escapeHTML(text)}</div>`;
+  mini.innerHTML += `<div class="msg ai"><span class="spinner"></span>思考中...</div>`;
+  const loadingEl = mini.lastElementChild;
+
+  try {
+    const body = {
+      message: text,
+      drawing_context: {
+        features: ctx.features || {},
+        analysis: ctx.analysis || ''
+      }
+    };
+    const res = await fetch(`${API}/chat_drawing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+
+    loadingEl.remove();
+    if (data.status === 200) {
+      mini.innerHTML += `<div class="msg ai">${escapeHTML(data.data.reply)}</div>`;
+    } else {
+      mini.innerHTML += `<div class="msg ai">抱歉，暂时无法回复 🙏</div>`;
+    }
+  } catch (err) {
+    loadingEl.remove();
+    mini.innerHTML += `<div class="msg ai">💔 连接后端失败</div>`;
+  }
+
+  mini.scrollTop = mini.scrollHeight;
+}
+
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

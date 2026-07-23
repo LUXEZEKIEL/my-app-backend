@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pymysql
+pyjwt
+numpy
+opencv-python
+chromadb
+openai
+ultralytics
+deepface
